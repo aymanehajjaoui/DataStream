@@ -272,7 +272,6 @@ class MainWindow(QMainWindow):
             else:
                 self.add_inference_button.setEnabled(True)
 
-            # 6. Refresh plot
             self.update_plot()
 
         except Exception as e:
