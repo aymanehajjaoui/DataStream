@@ -6,28 +6,42 @@ import time
 from collections import deque
 
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QPushButton, QVBoxLayout, QLabel,
-    QLineEdit, QHBoxLayout, QDoubleSpinBox, QColorDialog, QMessageBox,
-    QSizePolicy, QSplitter, QSlider
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QPushButton,
+    QVBoxLayout,
+    QLabel,
+    QLineEdit,
+    QHBoxLayout,
+    QDoubleSpinBox,
+    QColorDialog,
+    QGridLayout,
+    QMessageBox,
+    QSizePolicy,
+    QSplitter,
+    QSlider,
 )
 from PyQt5.QtCore import Qt, QTimer
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib
-matplotlib.use('Qt5Agg')
+
+matplotlib.use("Qt5Agg")
 
 MAX_CHANNELS = 2
 DEFAULT_XMAX = 200
 XMIN, XMAX = 1, 100000
 YMIN, YMAX = 1, 100000
 
+
 class MplCanvas(FigureCanvas):
     def __init__(self):
-        self.fig = Figure(figsize=(6, 6), dpi=100, facecolor='#fafafa')
+        self.fig = Figure(figsize=(6, 6), dpi=100, facecolor="#fafafa")
         self.ax1 = self.fig.add_subplot(211)
         self.ax2 = self.fig.add_subplot(212)
-        self.ax1.set_facecolor('#000000')
-        self.ax2.set_facecolor('#000000')
+        self.ax1.set_facecolor("#000000")
+        self.ax2.set_facecolor("#000000")
         self.ax1.set_title("Signal (Voltage vs Time)", fontsize=16)
         self.ax2.set_title("Inference Output (Speed vs Time)", fontsize=16)
         self.ax1.set_xlabel("Time (samples)")
@@ -35,8 +49,9 @@ class MplCanvas(FigureCanvas):
         self.ax2.set_xlabel("Time (samples)")
         self.ax2.set_ylabel("Speed")
         for ax in (self.ax1, self.ax2):
-            ax.grid(True, linestyle=':', linewidth=0.5, color='gray')
+            ax.grid(True, linestyle=":", linewidth=0.5, color="gray")
         super().__init__(self.fig)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -55,6 +70,7 @@ class MainWindow(QMainWindow):
         self.channel_rows = {0: {}, 1: {}}
         self.channel_counts = {0: 0, 1: 0}
         self.default_color = "yellow"
+        self.bg_colors = ["#000000", "#000000"]
         self.y_inputs = [QDoubleSpinBox(), QDoubleSpinBox()]
         self.x_inputs = [QDoubleSpinBox(), QDoubleSpinBox()]
         self.canvas = MplCanvas()
@@ -76,21 +92,35 @@ class MainWindow(QMainWindow):
         self.add_signal_button.clicked.connect(lambda: self.add_channel(0))
         self.add_inference_button = QPushButton("Add Inference Channel")
         self.add_inference_button.clicked.connect(lambda: self.add_channel(1))
-        self.bg_color_button = QPushButton("Background Color")
-        self.bg_color_button.clicked.connect(self.select_background_color)
+        self.bg_color_button1 = QPushButton("Set BG Color (subplot 0)")
+        self.bg_color_button1.clicked.connect(lambda: self.select_background_color(0))
+        self.bg_color_button2 = QPushButton("Set BG Color (subplot 1)")
+        self.bg_color_button2.clicked.connect(lambda: self.select_background_color(1))
         self.start_button = QPushButton("Start")
         self.start_button.clicked.connect(self.start_timer)
         self.stop_button = QPushButton("Stop")
         self.stop_button.clicked.connect(self.stop_timer)
 
-        button_bar = QHBoxLayout()
-        for btn in [self.add_signal_button, self.add_inference_button, self.bg_color_button, self.start_button, self.stop_button]:
-            button_bar.addWidget(btn)
+        button_grid = QGridLayout()
+        buttons = [
+            self.add_signal_button,
+            self.add_inference_button,
+            self.bg_color_button1,
+            self.bg_color_button2,
+            self.start_button,
+            self.stop_button,
+        ]
+
+        for i, btn in enumerate(buttons):
+            row = i // 2
+            col = i % 2
+            button_grid.addWidget(btn, row, col)
 
         left = QVBoxLayout()
         left.addLayout(self.input_layout)
         left.addStretch(1)
-        left.addLayout(button_bar)
+        left.addLayout(button_grid)
+
         left_widget = QWidget()
         left_widget.setLayout(left)
         left_widget.setMinimumWidth(300)
@@ -137,7 +167,11 @@ class MainWindow(QMainWindow):
         ch = self.channel_counts[subplot_index]
         self.channel_counts[subplot_index] += 1
         if self.channel_counts[subplot_index] == MAX_CHANNELS:
-            (self.add_signal_button if subplot_index == 0 else self.add_inference_button).setEnabled(False)
+            (
+                self.add_signal_button
+                if subplot_index == 0
+                else self.add_inference_button
+            ).setEnabled(False)
 
         default_port = 4000 + ch if subplot_index == 0 else 5000 + ch
         ip_input = QLineEdit("10.42.0.253")
@@ -145,15 +179,23 @@ class MainWindow(QMainWindow):
         checkbox = QPushButton("Hide")
         checkbox.setCheckable(True)
         checkbox.setChecked(True)
-        checkbox.clicked.connect(lambda _, si=subplot_index, c=ch: self.toggle_visibility(si, c))
+        checkbox.clicked.connect(
+            lambda _, si=subplot_index, c=ch: self.toggle_visibility(si, c)
+        )
         color_btn = QPushButton("Color")
-        color_btn.clicked.connect(lambda _, si=subplot_index, c=ch: self.select_channel_color(si, c))
+        color_btn.clicked.connect(
+            lambda _, si=subplot_index, c=ch: self.select_channel_color(si, c)
+        )
         apply_btn = QPushButton("Apply")
         apply_btn.setEnabled(False)
-        apply_btn.clicked.connect(lambda _, si=subplot_index, c=ch: self.restart_receiver(si, c))
+        apply_btn.clicked.connect(
+            lambda _, si=subplot_index, c=ch: self.restart_receiver(si, c)
+        )
         delete_btn = QPushButton("✖")
         delete_btn.setStyleSheet("color: red; font-weight: bold;")
-        delete_btn.clicked.connect(lambda _, si=subplot_index, c=ch: self.delete_channel(si, c))
+        delete_btn.clicked.connect(
+            lambda _, si=subplot_index, c=ch: self.delete_channel(si, c)
+        )
 
         ip_input.textChanged.connect(lambda: apply_btn.setEnabled(True))
         port_input.textChanged.connect(lambda: apply_btn.setEnabled(True))
@@ -167,7 +209,10 @@ class MainWindow(QMainWindow):
         self.input_layout.addWidget(row_container)
 
         self.inputs[subplot_index][ch] = (ip_input, port_input)
-        self.buffers[subplot_index][ch] = deque([0.0] * int(self.x_inputs[subplot_index].value()), maxlen=int(self.x_inputs[subplot_index].value()))
+        self.buffers[subplot_index][ch] = deque(
+            [0.0] * int(self.x_inputs[subplot_index].value()),
+            maxlen=int(self.x_inputs[subplot_index].value()),
+        )
         self.full_buffers[subplot_index][ch] = []
         self.colors[subplot_index][ch] = self.default_color
         self.checkboxes[subplot_index][ch] = checkbox
@@ -176,7 +221,9 @@ class MainWindow(QMainWindow):
         self.delete_buttons[subplot_index][ch] = delete_btn
 
         ax = self.canvas.ax1 if subplot_index == 0 else self.canvas.ax2
-        line, = ax.plot([], [], label=f"CH{subplot_index}-{ch+1}", color=self.default_color)
+        (line,) = ax.plot(
+            [], [], label=f"CH{subplot_index}-{ch+1}", color=self.default_color
+        )
         self.lines[subplot_index][ch] = line
         ax.legend()
 
@@ -184,14 +231,13 @@ class MainWindow(QMainWindow):
         stat = QLabel(f"Metrics\nMin: 0.0   Max: 0.0   Avg: 0.0   {label}: 0.0")
         self.stats_labels[subplot_index][ch] = stat
         self.input_layout.addWidget(stat)
-        
+
         self.channel_rows[subplot_index][ch] = row
 
         self.restart_receiver(subplot_index, ch)
 
     def delete_channel(self, subplot_index, ch):
         try:
-            # 1. Remove the widgets in the row layout
             row = self.channel_rows[subplot_index].pop(ch, None)
             if row:
                 for i in reversed(range(row.count())):
@@ -199,22 +245,27 @@ class MainWindow(QMainWindow):
                     if widget is not None:
                         widget.setParent(None)
 
-            # 2. Remove the associated metrics label
             stat_label = self.stats_labels[subplot_index].pop(ch, None)
             if stat_label:
                 stat_label.setParent(None)
 
-            # 3. Remove the line from the plot
             if ch in self.lines[subplot_index]:
                 self.lines[subplot_index][ch].remove()
                 del self.lines[subplot_index][ch]
 
-            # 4. Clean up all dictionaries
-            for d in [self.buffers, self.full_buffers, self.inputs, self.checkboxes, self.color_buttons,
-                    self.apply_buttons, self.delete_buttons, self.colors, self.threads]:
+            for d in [
+                self.buffers,
+                self.full_buffers,
+                self.inputs,
+                self.checkboxes,
+                self.color_buttons,
+                self.apply_buttons,
+                self.delete_buttons,
+                self.colors,
+                self.threads,
+            ]:
                 d[subplot_index].pop(ch, None)
 
-            # 5. Decrease count and re-enable buttons if needed
             self.channel_counts[subplot_index] -= 1
             if subplot_index == 0:
                 self.add_signal_button.setEnabled(True)
@@ -243,7 +294,11 @@ class MainWindow(QMainWindow):
         ip, port = self.inputs[subplot_index][ch]
         ip_str, port_int = ip.text().strip(), int(port.text().strip())
         self.apply_buttons[subplot_index][ch].setEnabled(False)
-        thread = threading.Thread(target=self.tcp_receiver, args=(subplot_index, ch, ip_str, port_int), daemon=True)
+        thread = threading.Thread(
+            target=self.tcp_receiver,
+            args=(subplot_index, ch, ip_str, port_int),
+            daemon=True,
+        )
         self.threads[subplot_index][ch] = thread
         thread.start()
 
@@ -257,7 +312,7 @@ class MainWindow(QMainWindow):
                         if not data:
                             break
                         if len(data) == 4:
-                            val = struct.unpack('<f', data)[0]
+                            val = struct.unpack("<f", data)[0]
                             self.buffers[subplot_index][ch].append(val)
                             self.full_buffers[subplot_index][ch].append(val)
             except:
@@ -265,32 +320,52 @@ class MainWindow(QMainWindow):
 
     def update_plot(self):
         for subplot_index, ax in enumerate([self.canvas.ax1, self.canvas.ax2]):
-            ax.cla()  # Clear only the content
+            ax.lines.clear()
+
+            has_lines = False
 
             for ch, buffer in self.buffers[subplot_index].items():
-                y = (self.full_buffers[subplot_index][ch][self.history_index:self.history_index + len(buffer)]
-                    if self.viewing_history else list(buffer))
+                y = (
+                    self.full_buffers[subplot_index][ch][
+                        self.history_index : self.history_index + len(buffer)
+                    ]
+                    if self.viewing_history
+                    else list(buffer)
+                )
                 x = list(range(len(y)))
                 if y:
                     label = "Current Speed" if subplot_index == 1 else "Current Voltage"
                     self.stats_labels[subplot_index][ch].setText(
                         f"Metrics\nMin: {min(y):.2f}   Max: {max(y):.2f}   Avg: {sum(y)/len(y):.2f}   {label}: {y[-1]:.2f}"
                     )
-                    ax.plot(x, y, color=self.colors[subplot_index][ch], label=f"CH{subplot_index}-{ch+1}")
+                    ax.plot(
+                        x,
+                        y,
+                        color=self.colors[subplot_index][ch],
+                        label=f"CH{subplot_index}-{ch+1}",
+                    )
+                    has_lines = True
 
-            # Re-set axis appearance
-            ax.set_facecolor('#000000')
-            if subplot_index == 0:
-                ax.set_title("Signal (Voltage vs Time)", fontsize=16)
-                ax.set_ylabel("Voltage")
-            else:
-                ax.set_title("Inference Output (Speed vs Time)", fontsize=16)
-                ax.set_ylabel("Speed")
+            ax.set_facecolor(self.bg_colors[subplot_index])
+            ax.set_title(
+                (
+                    "Signal (Voltage vs Time)"
+                    if subplot_index == 0
+                    else "Inference Output (Speed vs Time)"
+                ),
+                fontsize=16,
+            )
+            ax.set_ylabel("Voltage" if subplot_index == 0 else "Speed")
             ax.set_xlabel("Time (samples)")
             ax.set_xlim(0, self.x_inputs[subplot_index].value())
-            ax.set_ylim(-self.y_inputs[subplot_index].value(), self.y_inputs[subplot_index].value())
-            ax.grid(True, linestyle=':', linewidth=0.5, color='gray')
-            ax.legend()
+            ax.set_ylim(
+                -self.y_inputs[subplot_index].value(),
+                self.y_inputs[subplot_index].value(),
+            )
+            ax.grid(True, linestyle=":", linewidth=0.5, color="gray")
+
+            if has_lines:
+                ax.legend()
 
         self.canvas.draw()
 
@@ -305,12 +380,15 @@ class MainWindow(QMainWindow):
                 self.buffers[subplot_index][ch] = deque(old, maxlen=new_len)
         self.update_plot()
 
-    def select_background_color(self):
+
+    def select_background_color(self, subplot_index=None):
         color = QColorDialog.getColor()
         if color.isValid():
-            self.canvas.ax1.set_facecolor(color.name())
-            self.canvas.ax2.set_facecolor(color.name())
-            self.canvas.draw()
+            if subplot_index is None:
+                self.bg_colors[0] = self.bg_colors[1] = color.name()
+            else:
+                self.bg_colors[subplot_index] = color.name()
+            self.update_plot()
 
     def select_channel_color(self, subplot_index, ch):
         color = QColorDialog.getColor()
@@ -328,6 +406,7 @@ class MainWindow(QMainWindow):
         if self.viewing_history:
             self.history_index = value
             self.update_plot()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
