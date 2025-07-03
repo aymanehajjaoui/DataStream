@@ -130,11 +130,11 @@ class MainWindow(QMainWindow):
         horizontal_splitter.setStretchFactor(1, 1)
         bottom_layout = QVBoxLayout()
         for i in [0, 1]:
-            y_label = QLabel(f"Y max (subplot {i}):")
+            y_label = QLabel(f"Y max (subplot {i+1}):")
             self.y_inputs[i].setRange(YMIN, YMAX)
             self.y_inputs[i].setValue(100)
             self.y_inputs[i].valueChanged.connect(self.redraw_plot)
-            x_label = QLabel(f"X max (subplot {i}):")
+            x_label = QLabel(f"X max (subplot {i+1}):")
             self.x_inputs[i].setRange(XMIN, XMAX)
             self.x_inputs[i].setValue(DEFAULT_XMAX)
             self.x_inputs[i].valueChanged.connect(self.redraw_plot)
