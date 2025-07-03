@@ -29,8 +29,8 @@ matplotlib.use("Qt5Agg")
 
 MAX_CHANNELS = 2
 DEFAULT_XMAX = 200
-XMIN, XMAX = 1, 100000
-YMIN, YMAX = 1, 100000
+XMIN, XMAX = 0.01, 100000
+YMIN, YMAX = 0.01, 100000
 
 
 class MplCanvas(FigureCanvas):
