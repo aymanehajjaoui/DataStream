@@ -227,6 +227,13 @@ class MainWindow(QMainWindow):
         self.restart_receiver(subplot_index, ch)
         self.redraw_plot()
 
+    def resize_buffers(self):
+        for subplot_index in [0, 1]:
+            new_len = int(self.x_inputs[subplot_index].value())
+            for ch, buffer in self.buffers[subplot_index].items():
+                if buffer.maxlen != new_len:
+                    self.buffers[subplot_index][ch] = deque(buffer, maxlen=new_len)
+
     def delete_channel(self, subplot_index, ch):
         try:
             row = self.channel_rows[subplot_index].pop(ch, None)
@@ -307,6 +314,7 @@ class MainWindow(QMainWindow):
                 time.sleep(1)
 
     def redraw_plot(self):
+        self.resize_buffers()
         font_size = max(10, self.width() // 100)
         for subplot_index, ax in enumerate([self.canvas.ax1, self.canvas.ax2]):
             has_lines = False
