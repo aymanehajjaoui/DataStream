@@ -28,7 +28,7 @@ import matplotlib
 matplotlib.use("Qt5Agg")
 
 MAX_CHANNELS = 2
-DEFAULT_XMAX = 200
+DEFAULT_XMAX = 48000
 XMIN, XMAX = 0.01, 100000
 YMIN, YMAX = 0.01, 100000
 
@@ -132,11 +132,17 @@ class MainWindow(QMainWindow):
         for i in [0, 1]:
             y_label = QLabel(f"Y max (subplot {i+1}):")
             self.y_inputs[i].setRange(YMIN, YMAX)
-            self.y_inputs[i].setValue(100)
+            if i == 0:
+                self.y_inputs[i].setValue(1)
+            else:
+                self.y_inputs[i].setValue(100)
             self.y_inputs[i].valueChanged.connect(self.redraw_plot)
             x_label = QLabel(f"X max (subplot {i+1}):")
             self.x_inputs[i].setRange(XMIN, XMAX)
-            self.x_inputs[i].setValue(DEFAULT_XMAX)
+            if i == 0:
+                self.x_inputs[i].setValue(DEFAULT_XMAX)
+            else:
+                self.x_inputs[i].setValue(DEFAULT_XMAX/1000)
             self.x_inputs[i].valueChanged.connect(self.redraw_plot)
             row = QHBoxLayout()
             row.addWidget(y_label)
@@ -298,19 +304,25 @@ class MainWindow(QMainWindow):
         thread.start()
 
     def tcp_receiver(self, subplot_index, ch, ip, port):
+        buffer_size = 4096
         while True:
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.connect((ip, port))
                     while True:
-                        data = s.recv(4)
+                        data = s.recv(buffer_size)
                         if not data:
                             break
-                        if len(data) == 4:
-                            val = struct.unpack("<f", data)[0]
+                        if len(data) % 4 != 0:
+                            print(f"[TCP Receiver] Warning: received {len(data)} bytes not multiple of 4")
+                            continue
+                        num_floats = len(data) // 4
+                        floats = struct.unpack("<" + "f" * num_floats, data)
+                        for val in floats:
                             self.buffers[subplot_index][ch].append(val)
                             self.full_buffers[subplot_index][ch].append(val)
-            except:
+            except Exception as e:
+                print(f"[TCP Receiver] Connection error on CH{subplot_index+1}:{ch+1} - {e}")
                 time.sleep(1)
 
     def redraw_plot(self):
